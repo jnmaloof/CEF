@@ -1,0 +1,86 @@
+---
+title: "Occuoancy"
+author: "Julin Maloof"
+date: "2023-07-31"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Script to summarize occupancy over time
+
+```{r}
+library(googlesheets4)
+library(tidyverse)
+```
+
+```{r}
+dat <- read_sheet("https://docs.google.com/spreadsheets/d/1xWfmY40QRn9ZeI0ENFwOpIOu3nKhoDxZh8sPTIh5R-U/edit#gid=1308914834", sheet = "Occupancy Checks", col_types="c")[-1,] 
+head(dat)
+```
+
+```{r}
+ldat <- dat %>%
+  select(-`BEFORE 5/2022`) %>%
+  pivot_longer(-Chamber, names_to = "date", values_to = "status", names_transform = lubridate::mdy) %>%
+  mutate(status={toupper(status) %>% str_extract("^(OK|MT|DP|OFF)")})
+ldat
+```
+
+```{r}
+ldat %>% 
+  na.omit() %>%
+  group_by(date) %>%
+  ggplot(aes(x=date, fill=status)) +
+  geom_bar() 
+```
+
+```{r}
+ldat %>% 
+  na.omit() %>%
+  filter(!str_detect(Chamber, fixed("."))) %>%
+  group_by(date) %>%
+  ggplot(aes(x=date, fill=status)) +
+  geom_bar() 
+```
+
+```{r}
+ldat %>%
+  na.omit() %>%
+  pivot_wider(id_cols = date, names_from = status, values_from = status, values_fn = length)
+  
+```
+
+```{r}
+ldat %>%
+  na.omit() %>%
+ group_by(date, status) %>%
+  summarise(count=n()) %>%
+  group_by(date) %>%
+  mutate(percent=round(count/sum(count)*100, 1)) %>%
+  select(-count) %>%
+  pivot_wider(names_from = status, values_from = percent) %>% 
+  ungroup() %>%
+  mutate(DP_MT=DP+MT) %>% 
+  arrange(OFF)
+  
+```
+
+```{r}
+ldat %>%
+  na.omit() %>%
+    filter(!str_detect(Chamber, fixed("."))) %>%
+ group_by(date, status) %>%
+  summarise(count=n()) %>%
+  group_by(date) %>%
+  mutate(percent=round(count/sum(count)*100, 1)) %>%
+  select(-count) %>%
+  pivot_wider(names_from = status, values_from = percent) %>% 
+  ungroup() %>%
+  mutate(DP_MT=DP+MT) %>% 
+  arrange(OFF)
+  
+```
+
